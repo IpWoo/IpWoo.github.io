@@ -47,7 +47,7 @@ module.exports = {
     plugins: [
         new CleanWebpackPlugin(),
         new HtmlWebpackPlugin({
-            title: 'three',
+            title: 'IpWoo',
         }),
         new CopyWebpackPlugin({
             patterns: [
