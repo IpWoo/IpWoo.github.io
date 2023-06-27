@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Job system概述!"
+title:  "Job system概述"
 date:   2023-06-27
 categories: jekyll update
 ---
