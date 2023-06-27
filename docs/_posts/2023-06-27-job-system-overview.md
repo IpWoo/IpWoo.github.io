@@ -80,5 +80,27 @@ public NativeArray<int> input;
 ```csharp
 NativeArray<float> result = new NativeArray<float>(1, Allocator.TempJob);
 ```
+
 注意：上面的例子中的数字1表示NativeArray的大小。在这种情况下，它只有一个数组元素，因为它的结果中只存储了一个数据。
+
+# NativeContainer安全系统
+安全系统内置于所有NativeContainer实例中。它跟踪对任何NativeContainer实例的读取或写入，并使用这些信息对NativeContainer的使用强制执行某些规则，使其在多个jobs和线程中以确定的方式行事。
+
+例如，如果两个独立的jobs写到同一个NativeArray，这是不安全的，因为你无法预测哪个job先执行。这意味着你不知道这个job是否会覆盖另一个job的数据。当你调度第二个job时，安全系统会抛出一个异常，并给出明确的错误信息，解释为什么以及如何解决这个问题。
+
+如果你想调度两个job写入同一个NativeContainer实例，你可以用一个依赖关系来调度job。第一个job写入NativeContainer，一旦它执行完毕，下一个job就会安全地读写到同一个NativeContainer。引入依赖关系可以保证jobs总是以一致的顺序执行，并且在NativeContainer中产生的数据是确定性的。
+
+安全系统允许多个job并行地从同一`数据`中读取。
+
+这些读写限制也适用于从主线程访问数据时。例如，如果你试图在写入NativeContainer的job完成之前读取其内容，安全系统会抛出一个错误。同样地，如果你试图在一个NativeContainer的读写job还未完成时就向它写东西，那么安全系统也会抛出一个错误。
+
+另外，由于NativeContainer没有实现ref return，你不能直接改变NativeContainer的内容。例如，`nativeArray[0]++;`和写`var temp = nativeArray[0]; temp++;`是一样的，这并不能更新nativeArray中的值。
+
+相反，你必须将索引中的数据复制到本地的临时副本中，修改该副本，并将其保存回来。比如说：
+
+```csharp
+MyStruct temp = myNativeArray[i];
+temp.memberVariable = 0;
+myNativeArray[i] = temp;
+```
 
