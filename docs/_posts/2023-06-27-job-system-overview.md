@@ -64,3 +64,17 @@ public NativeArray<int> input;
 ```
 
 在上面的例子中，你可以和其他同样对第一个`NativeArray`有只读权限的job同时执行这个job。
+
+## 内存分配器（Memory allocators）
+当你创建一个NativeContainer实例时，你必须指定你需要的内存分配类型。你所使用的分配类型取决于你想让NativeContainer保持多长时间的可用性。这样你就可以定制分配，以便在各种情况下获得最佳性能。
+
+有三种分配器类型用于NativeContainer内存的分配和释放。你必须在实例化一个NativeContainer实例时指定合适的类型：
+
+* Allocator.Temp：最快的分配。使用它来分配生命周期为一帧或更短的内存。你不能使用Temp来传递分配给存储在作业成员字段中的NativeContainer实例。
+* Allocator.TempJob： 一个比Temp慢的分配，但比Persistent快。在四帧的生命周期内使用它进行线程安全的分配。重要提示：你必须在四帧内处置这种分配类型，否则控制台会打印出一个警告，由本地代码生成。大多数小型工作都使用这种分配类型。
+* Allocator.Persistent： 最慢的分配，但可以根据你的需要持续下去，如果有必要，可以在整个应用程序的生命周期内持续下去。它是一个直接调用malloc的包装器。较长的工作可以使用这种NativeContainer分配类型。在对性能要求很高的地方不要使用Persistent。
+比如说：
+```csharp
+NativeArray<float> result = new NativeArray<float>(1, Allocator.TempJob);
+```
+注意：上面的例子中的数字1表示NativeArray的大小。在这种情况下，它只有一个数组元素，因为它的结果中只存储了一个数据。
