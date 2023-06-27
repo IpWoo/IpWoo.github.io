@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Job system概述（翻译）"
+title:  "Unity Job System（文档翻译）"
 date:   2023-06-27
 categories: jekyll update
 ---
