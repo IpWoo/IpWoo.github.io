@@ -78,3 +78,4 @@ public NativeArray<int> input;
 NativeArray<float> result = new NativeArray<float>(1, Allocator.TempJob);
 ```
 注意：上面的例子中的数字1表示NativeArray的大小。在这种情况下，它只有一个数组元素，因为它的结果中只存储了一个数据。
+
