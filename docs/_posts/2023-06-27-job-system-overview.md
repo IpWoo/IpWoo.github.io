@@ -4,3 +4,10 @@ Unity的job system可以让你创建多线程代码，这样你的应用程序�
 你可以单独使用job system，但为了提高性能，你还应该使用Burst编译器，它是专门为Unity的job system编译jobs而设计的。Burst编译器改进了代码生成，从而提高了性能，减少了移动设备的电池消耗。
 
 你还可以将job system与Unity的ECS一起使用，以创建高性能的面向数据的代码。
+
+## 多线程
+Unity使用自己的native job system在多个**工人线程（worker thread）** 上处理自己的原生代码，而这取决于你的应用程序所运行的设备上可用的CPU核的数量。通常，Unity在一个线程上执行你的代码，这个线程默认在程序开始时运行，称为**主线程（main thread）**。然而，当你使用job system时，Unity也可以在工人线程上执行你的代码，这被称为**多线程（multithreading）**。
+
+多线程利用了CPU在多个核心上同时处理大量线程的能力。它们不是一个接一个地执行任务或指令，而是同时运行。job system并行运行，一旦完成，就与主线程同步结果。
+
+job system确保线程与CPU核心的容量相匹配，这意味着你可以根据需要安排尽可能多的jobs，而不需要关心有多少CPU核心可用。这与其他依赖线程池（thread pooling）等技术的作业系统不同，后者可以创建比CPU内核更多的线程但效率比较低。
