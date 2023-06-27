@@ -50,5 +50,17 @@ NativeContainers的类型
 `Unity.Collections`命名空间包含以下内置的`NativeContainer`对象：
 
 `NativeArray`： 一个非托管数组，它向托管代码暴露了一个本地内存的缓冲区。
-`NativeSlic`e： 获取`NativeArray`的一个子集，从某个索引位置开始一段长度。
+`NativeSlice`： 获取`NativeArray`的一个子集，从某个索引位置开始一段长度。
 ** 注意 **：`Collections包`包含了额外的`NativeContainers`。有关附加类型的完整列表，请参见Collections文档中的Collection类型。
+
+## 读和写访问
+默认情况下，当一个job可以访问`NativeContainer`实例时，它有读和写两种访问权限。这种配置会降低性能。这是因为job system不允许你在安排一个对`NativeContainer`实例有写权限的job时，同时安排另一个正在向它写的job。
+
+然而，如果一个job不需要写到`NativeContainer`实例，你可以用`[ReadOnly]`属性标记`NativeContainer`，就像这样：
+
+```csharp
+[ReadOnly]
+public NativeArray<int> input;
+```
+
+在上面的例子中，你可以和其他同样对第一个`NativeArray`有只读权限的job同时执行这个job。
