@@ -33,13 +33,22 @@ job system拷贝数据的方式意味着job只能访问blittable数据类型。�
 job system使用memcpy来复制blittable类型，并在Unity的托管和本地部分之间传输数据。在调度作业时，它使用memcpy将数据放入本地内存，并在执行jobs时让托管方访问该副本。更多信息，请参阅调度作业（Scheduling jobs）。
 
 ## Jobs概述
-一个job是一个小的工作单位，做一个特定的任务。一个job接收参数并对数据进行操作，类似于一个方法调用的行为方式。job可以是独立的，也可以在运行前依赖其他job的完成。在Unity中，job是指任何实现IJob接口的结构。
+一个job是一个小的工作单位，做一个特定的任务。一个job接收参数并对数据进行操作，类似于一个方法调用的行为方式。job可以是独立的，也可以在运行前依赖其他job的完成。在Unity中，job是指任何实现`IJob接口`的结构。
 
 只有主线程可以调度和完成job。它不能访问任何正在运行的job的内容，而且两个job不能同时访问一个job的内容。为了保证job的高效运行，你可以让它们相互依赖。Unity的作业系统允许你创建复杂的依赖链，以确保你的job以正确的顺序完成。
 
 ## Jobs类型
-IJob： 在一个job线程上运行一个单一的任务。
-IJobParallelFor： 并行运行一个任务。每个并行运行的工人线程都有一个独占索引，以安全地访问工作线程之间的共享数据。
-IJobParallelForTransform： 并行运行一个任务。每个并行运行的工人线程都有一个独占的Transform，可以从Transform层次结构中进行操作。
-IJobFor： 与IJobParallelFor相同，但允许你对任务进行调度，使其不并行运行。
+* `IJob`： 在一个job线程上运行一个单一的任务。
+* `IJobParallelFor`： 并行运行一个任务。每个并行运行的工人线程都有一个独占索引，以安全地访问工作线程之间的共享数据。
+* `IJobParallelForTransform`： 并行运行一个任务。每个并行运行的工人线程都有一个独占的Transform，可以从Transform层次结构中进行操作。
+* `IJobFor`： 与IJobParallelFor相同，但允许你对任务进行调度，使其不并行运行。
 
+## 线程安全类型
+当你将job system与`Burst编译器`一起使用时，它的效果最好。因为Burst不支持托管对象，你需要使用非托管类型来访问jobs中的数据。你可以使用`blittable类型`，或者使用Unity内置的`NativeContainer`对象，它是一个线程安全的C#包装器，用于本地内存。`NativeContainer`对象也允许jobs访问与`主线程`共享的数据，而不是使用一个副本。
+
+NativeContainers的类型
+`Unity.Collections`命名空间包含以下内置的`NativeContainer`对象：
+
+`NativeArray`： 一个非托管数组，它向托管代码暴露了一个本地内存的缓冲区。
+`NativeSlic`e： 获取`NativeArray`的一个子集，从某个索引位置开始一段长度。
+** 注意 **：`Collections包`包含了额外的`NativeContainers`。有关附加类型的完整列表，请参见Collections文档中的Collection类型。
