@@ -8,7 +8,7 @@ categories: jekyll update
 
 原文连接：<https://docs.unity3d.com/Manual/JobSystem.html>
 
-# Job system概述
+### Job system概述
 Unity的job system可以让你创建多线程代码，这样你的应用程序可以使用所有可用的CPU核心来执行你的代码。这提供了更好的性能，因为你的应用程序更有效地使用它所运行的所有CPU核心的能力，而不是在一个CPU核心上运行所有代码。
 
 你可以单独使用job system，但为了提高性能，你还应该使用Burst编译器，它是专门为Unity的job system编译jobs而设计的。Burst编译器改进了代码生成，从而提高了性能，减少了移动设备的电池消耗。
@@ -141,11 +141,11 @@ Unity的原生代码实现了泄漏跟踪。它使用UnsafeUtility.MallocTracked
 你也可以用SetCustomErrorMessage来覆盖特定的违反安全约束的错误信息。
 
 # 复制NativeContainer结构
-Native容器是值类型，这意味着当它们被分配到一个变量时，Unity会复制NativeContainer结构，其中包含指向存储Native容器数据的指针，包括其AtomicSafetyHandle。它并不复制NativeContainer的全部内容。
+NativeContainer是值类型，这意味着当它们被分配到一个变量时，Unity会复制NativeContainer结构，其中包含指向存储NativeContainer数据的指针，包括其AtomicSafetyHandle。它并不复制NativeContainer的全部内容。
 
 这种情况意味着一个NativeContainer结构可能有多个副本，它们都引用了同一个内存区域，并且都包含了引用同一个中央记录的AtomicSafetyHandle对象。
 
 ![native-container-diagram](https://github.com/IpWoo/IpWoo.github.io/blob/gh-pages/docs/image/native-container-diagram.png?raw=true "native-container-diagram")
-NativeContainer对象的副本如何工作
-NativeContainer对象的副本如何工作
-上图显示了一个NativeArray结构的三个不同的副本，它们都代表了同一个实际的容器。每个副本都指向相同的存储数据，以及与原始NativeArray相同的安全数据。然而，NativeArray的每个副本都有不同的标志，表明作业被允许对该副本做什么。指向安全数据的指针，结合这些标志，构成了AtomicSafetyHandle。
+> NativeContainer对象的副本如何工作
+
+上图显示了一个NativeArray结构的三个不同的副本，它们都代表了同一个实际的容器。每个副本都指向相同的存储数据，以及与原始NativeArray相同的安全数据。然而，NativeArray的每个副本都有不同的标志，表明作业被允许对该副本做什么。指向安全数据的指针，结合这些标识，构成了AtomicSafetyHandle。
