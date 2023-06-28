@@ -8,25 +8,25 @@ categories: jekyll update
 
 原文连接：<https://docs.unity3d.com/Manual/JobSystem.html>
 
-Job system概述
-====
+### Job system概述
+***
 Unity的job system可以让你创建多线程代码，这样你的应用程序可以使用所有可用的CPU核心来执行你的代码。这提供了更好的性能，因为你的应用程序更有效地使用它所运行的所有CPU核心的能力，而不是在一个CPU核心上运行所有代码。
 
 你可以单独使用job system，但为了提高性能，你还应该使用Burst编译器，它是专门为Unity的job system编译jobs而设计的。Burst编译器改进了代码生成，从而提高了性能，减少了移动设备的电池消耗。
 
 你还可以将job system与Unity的ECS一起使用，以创建高性能的面向数据的代码。
 
-### 多线程
+###### 多线程
 Unity使用自己的native job system在多个**工人线程（worker thread）** 上处理自己的原生代码，而这取决于你的应用程序所运行的设备上可用的CPU核的数量。通常，Unity在一个线程上执行你的代码，这个线程默认在程序开始时运行，称为**主线程（main thread）**。然而，当你使用job system时，Unity也可以在工人线程上执行你的代码，这被称为**多线程（multithreading）**。
 
 多线程利用了CPU在多个核心上同时处理大量线程的能力。它们不是一个接一个地执行任务或指令，而是同时运行。job system并行运行，一旦完成，就与主线程同步结果。
 
 job system确保线程与CPU核心的容量相匹配，这意味着你可以根据需要安排尽可能多的jobs，而不需要关心有多少CPU核心可用。这与其他依赖线程池（thread pooling）等技术的作业系统不同，后者可以创建比CPU内核更多的线程但效率比较低。
 
-### 任务偷取（Work stealing）
+##### 任务偷取（Work stealing）
 job system使用任务偷取作为其调度策略的一部分，以平衡工人线程之间的任务量。某个工人线程处理任务的速度可能比其他线程快，所以一旦这个工人线程处理完所有的任务，它就会查看其他工人线程的队列没有处理的任务，然后分配给空闲工人线程。
 
-### 安全系统（Safety system）
+#### 安全系统（Safety system）
 为了使编写多线程代码更加容易，job system有一个安全系统，可以检测所有潜在的竞争条件（Race Condition），并保护你免受它们可能导致的错误。当一个操作的输出取决于其控制之外的另一个进程的时间时，就会发生竞争条件。
 
 例如，如果job system将你在主线程中的代码对数据的引用发送给一个job，它无法验证主线程是否在job写入数据的同时读取数据。这种情况会产生一个竞争条件。
