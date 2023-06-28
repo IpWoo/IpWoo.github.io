@@ -192,7 +192,7 @@ AtomicSafetyHandle还指向一个中央记录，该记录对于NativeContainer�
 ### 自定义NativeContainer示例
 ***
 
-下面是一个完整的自定义NativeContainer的例子，作为一个仅有附加的列表。它演示了读和写操作的基本保护，以及创建和失效别名视图。关于另一个例子，请看NativeContainerAttribute API文档。
+下面是一个完整的自定义NativeContainer的例子，作为一个append-only list。它演示了读和写操作的基本保护，以及创建和失效别名视图。还有另一个例子，请看NativeContainerAttribute API文档。
 
 ```csharp
 using System;
