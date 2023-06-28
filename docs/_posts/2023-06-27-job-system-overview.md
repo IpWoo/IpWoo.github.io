@@ -8,7 +8,8 @@ categories: jekyll update
 
 原文连接：<https://docs.unity3d.com/Manual/JobSystem.html>
 
-### Job system概述
+Job system概述
+====
 Unity的job system可以让你创建多线程代码，这样你的应用程序可以使用所有可用的CPU核心来执行你的代码。这提供了更好的性能，因为你的应用程序更有效地使用它所运行的所有CPU核心的能力，而不是在一个CPU核心上运行所有代码。
 
 你可以单独使用job system，但为了提高性能，你还应该使用Burst编译器，它是专门为Unity的job system编译jobs而设计的。Burst编译器改进了代码生成，从而提高了性能，减少了移动设备的电池消耗。
@@ -36,7 +37,8 @@ job system拷贝数据的方式意味着job只能访问blittable数据类型。�
 
 job system使用memcpy来复制blittable类型，并在Unity的托管和本地部分之间传输数据。在调度作业时，它使用memcpy将数据放入本地内存，并在执行jobs时让托管方访问该副本。更多信息，请参阅调度作业（Scheduling jobs）。
 
-# Jobs概述
+Jobs概述
+===
 一个job是一个小的工作单位，做一个特定的任务。一个job接收参数并对数据进行操作，类似于一个方法调用的行为方式。job可以是独立的，也可以在运行前依赖其他job的完成。在Unity中，job是指任何实现`IJob接口`的结构。
 
 只有主线程可以调度和完成job。它不能访问任何正在运行的job的内容，而且两个job不能同时访问一个job的内容。为了保证job的高效运行，你可以让它们相互依赖。Unity的作业系统允许你创建复杂的依赖链，以确保你的job以正确的顺序完成。
