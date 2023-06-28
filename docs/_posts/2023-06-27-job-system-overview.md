@@ -145,6 +145,7 @@ Native容器是值类型，这意味着当它们被分配到一个变量时，Un
 
 这种情况意味着一个NativeContainer结构可能有多个副本，它们都引用了同一个内存区域，并且都包含了引用同一个中央记录的AtomicSafetyHandle对象。
 
+![native-container-diagram](https://github.com/IpWoo/IpWoo.github.io/blob/gh-pages/docs/image/native-container-diagram.png?raw=true "native-container-diagram")
 NativeContainer对象的副本如何工作
 NativeContainer对象的副本如何工作
 上图显示了一个NativeArray结构的三个不同的副本，它们都代表了同一个实际的容器。每个副本都指向相同的存储数据，以及与原始NativeArray相同的安全数据。然而，NativeArray的每个副本都有不同的标志，表明作业被允许对该副本做什么。指向安全数据的指针，结合这些标志，构成了AtomicSafetyHandle。
