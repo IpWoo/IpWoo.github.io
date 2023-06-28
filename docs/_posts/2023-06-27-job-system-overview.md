@@ -159,3 +159,198 @@ NativeContainer是值类型，这意味着当它们被分配到一个变量时�
 > NativeContainer对象的副本如何工作
 
 上图显示了一个NativeArray结构的三个不同的副本，它们都代表了同一个实际的容器。每个副本都指向相同的存储数据，以及与原始NativeArray相同的安全数据。然而，NativeArray的每个副本都有不同的标志，表明作业被允许对该副本做什么。指向安全数据的指针，结合这些标识，构成了AtomicSafetyHandle。
+
+#### 版本号
+如果一个NativeContainer被处置了，所有NativeContainer结构的副本都必须认识到原始NativeContainer是无效的。处置原始的NativeContainer意味着用来存放NativeContainer数据的内存块已经被取消分配。在这种情况下，存储在每个NativeContainer副本中的数据指针是无效的，如果你使用它可能会导致访问违规。
+
+AtomicSafetyHandle还指向一个中央记录，该记录对于NativeContainer实例来说变得无效。然而，安全系统从不为中央记录去分配内存，所以它避免了访问违规的风险。
+
+相反，每个记录都包含一个版本号。每个引用该记录的AtomicSafetyHandle中都有一个版本号的副本。当一个NativeContainer被处理掉时，Unity会调用Release()，它将增加中央记录的版本号。在这之后，该记录可以为其他NativeContainer实例重新使用。
+
+每个剩余的AtomicSafetyHandle将其存储的版本号与中央记录中的版本号进行比较，以测试NativeContainer是否已经被处理掉了。Unity自动执行这个测试，作为对CheckReadAndThrow和CheckWriteAndThrow等方法的调用的一部分。
+
+#### 动态本地容器的静态视图
+一个动态NativeContainer是一个具有可变大小的容器，你可以继续向其添加元素，比如NativeList<T>（可在Collections包中找到）。这与NativeArray<T>这样的静态NativeContainer相反，后者有一个固定的大小，你不能改变。
+
+当你使用一个动态NativeContainer时，你也可以通过另一个接口（称为视图）直接访问它的数据。视图允许你对NativeContainer对象的数据进行别名，而不需要复制或获取数据的所有权。视图的例子包括枚举器对象，你可以用它来逐个访问NativeContainer中的数据，以及诸如NativeList<T>.AsArray的方法，你可以用它来把NativeList当作NativeArray。
+
+如果动态NativeContainer的大小发生变化，视图通常不是线程安全的。这是因为当NativeContainer的大小发生变化时，Unity会重新定位数据在内存中的存储位置，这会导致视图存储的任何指针变得无效。
+
+#### 二级版本号
+为了支持动态NativeContainer的大小发生变化的情况，安全系统在AtomicSafetyHandle中包括一个二级版本号。这个机制类似于版本划分机制，但是使用了存储在中央记录中的第二个版本号，它可以独立于第一个版本号进行递增。
+
+为了使用二级版本号，你可以使用UseSecondaryVersion来将视图配置到存储在NativeContainer中的数据中。对于改变Native容器大小的操作，或以其他方式使现有的视图无效，使用CheckWriteAndBumpSecondaryVersion而不是CheckWriteAndThrow。你还需要在NativeContainer上设置SetBumpSecondaryVersionOnScheduleWrite，以便在计划向NativeContainer写入作业时自动使视图失效。
+
+当你创建一个视图并将AtomicSafetyHandle复制到它时，使用CheckGetSecondaryDataPointerAndThrow来确认将指向NativeContainer的内存的指针复制到视图中是安全的。
+
+#### 特殊句柄
+有两个特殊的句柄，你可以在处理临时NativeContainer时使用：
+
+* GetTempMemoryHandle： 返回一个AtomicSafetyHandle，你可以在用Allocator.Temp分配的NativeContainer中使用。当当前临时内存范围退出时，Unity会自动使这个句柄失效，所以你不需要自己释放它。要测试一个特定的AtomicSafetyHandle是否是GetTempMemoryHandle返回的句柄，使用IsTempMemoryHandle。
+* GetTempUnsafePtrSliceHandle： 返回一个全局句柄，你可以用于由不安全内存支持的临时NativeContainer。例如，一个由堆栈内存构建的NativeSlice。你不能把使用这个句柄的容器传递给job。
+
+### 自定义NativeContainer示例
+***
+
+下面是一个完整的自定义NativeContainer的例子，作为一个仅有附加的列表。它演示了读和写操作的基本保护，以及创建和失效别名视图。关于另一个例子，请看NativeContainerAttribute API文档。
+
+```csharp
+using System;
+using System.Runtime.InteropServices;
+using Unity.Collections.LowLevel.Unsafe;
+using Unity.Collections;
+
+// Marks the struct as a NativeContainer. This tells the job system that it contains an AtomicSafetyHandle.
+[NativeContainer]
+public unsafe struct NativeAppendOnlyList<T> : IDisposable where T : unmanaged
+{
+    // Raw pointers aren't usually allowed inside structures that are passed to jobs, but because it's protected
+    // with the safety system, you can disable that restriction for it
+    [NativeDisableUnsafePtrRestriction]
+    internal void* m_Buffer;
+    internal int m_Length;
+    internal Allocator m_AllocatorLabel;
+
+    // You should only declare and use safety system members with the ENABLE_UNITY_COLLECTIONS_CHECKS define.
+    // In final builds of projects, the safety system is disabled for performance reasons, so these APIs aren't
+    // available in those builds.
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+    
+    // The AtomicSafetyHandle field must be named exactly 'm_Safety'.
+    internal AtomicSafetyHandle m_Safety;
+    
+    // Statically register this type with the safety system, using a name derived from the type itself
+    internal static readonly int s_staticSafetyId = AtomicSafetyHandle.NewStaticSafetyId<NativeAppendOnlyList<T>>();
+#endif
+
+    public NativeAppendOnlyList(Allocator allocator, params T[] initialItems)
+    {
+        m_Length = initialItems.Length;
+        m_AllocatorLabel = allocator;
+
+        // Calculate the size of the initial buffer in bytes, and allocate it
+        int totalSize = UnsafeUtility.SizeOf<T>() * m_Length;
+        m_Buffer = UnsafeUtility.MallocTracked(totalSize, UnsafeUtility.AlignOf<T>(), m_AllocatorLabel, 1);
+
+        // Copy the data from the array into the buffer
+        var handle = GCHandle.Alloc(initialItems, GCHandleType.Pinned);
+        try
+        {
+            UnsafeUtility.MemCpy(m_Buffer, handle.AddrOfPinnedObject().ToPointer(), totalSize);
+        }
+        finally
+        {
+            handle.Free();
+        }
+
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        // Create the AtomicSafetyHandle and DisposeSentinel
+        m_Safety = AtomicSafetyHandle.Create();
+
+        // Set the safety ID on the AtomicSafetyHandle so that error messages describe this container type properly.
+        AtomicSafetyHandle.SetStaticSafetyId(ref m_Safety, s_staticSafetyId);
+        
+        // Automatically bump the secondary version any time this container is scheduled for writing in a job
+        AtomicSafetyHandle.SetBumpSecondaryVersionOnScheduleWrite(m_Safety, true);
+
+        // Check if this is a nested container, and if so, set the nested container flag
+        if (UnsafeUtility.IsNativeContainerType<T>()) 
+            AtomicSafetyHandle.SetNestedContainer(m_Safety, true);
+#endif
+    }
+
+    public int Length
+    {
+        get
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            // Check that you are allowed to read information about the container 
+            // This throws InvalidOperationException if you aren't allowed to read from the native container,
+            // or if the native container has been disposed
+            AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
+#endif
+            return m_Length;
+        }
+    }
+
+    public T this[int index]
+    {
+        get
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            // Check that you can read from the native container right now.
+            AtomicSafetyHandle.CheckReadAndThrow(m_Safety);
+#endif
+
+            // Read from the buffer and return the value
+            return UnsafeUtility.ReadArrayElement<T>(m_Buffer, index);
+        }
+
+        set
+        {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            // Check that you can write to the native container right now.
+            AtomicSafetyHandle.CheckWriteAndThrow(m_Safety);
+#endif
+            // Write the value into the buffer
+            UnsafeUtility.WriteArrayElement(m_Buffer, index, value);
+        }
+    }
+
+    public void Add(T value)
+    {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        // Check that you can modify (write to) the native container right now, and if so, bump the secondary version so that
+        // any views are invalidated, because you are going to change the size and pointer to the buffer
+        AtomicSafetyHandle.CheckWriteAndBumpSecondaryVersion(m_Safety);
+#endif
+
+        // Replace the current buffer with a new one that has space for an extra element
+        int newTotalSize = (m_Length + 1) * UnsafeUtility.SizeOf<T>();
+        void* newBuffer = UnsafeUtility.MallocTracked(newTotalSize, UnsafeUtility.AlignOf<T>(), m_AllocatorLabel, 1);
+        UnsafeUtility.MemCpy(newBuffer, m_Buffer, m_Length * UnsafeUtility.SizeOf<T>());
+        UnsafeUtility.FreeTracked(m_Buffer, m_AllocatorLabel);
+        m_Buffer = newBuffer;
+        
+        // Put the new element at the end of the buffer and increase the length
+        UnsafeUtility.WriteArrayElement(m_Buffer, m_Length++, value);
+    }
+
+    public NativeArray<T> AsArray()
+    {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        // Check that it's safe for you to use the buffer pointer to construct a view right now.
+        AtomicSafetyHandle.CheckGetSecondaryDataPointerAndThrow(m_Safety);
+        
+        // Make a copy of the AtomicSafetyHandle, and mark the copy to use the secondary version instead of the primary
+        AtomicSafetyHandle handleForArray = m_Safety;
+        AtomicSafetyHandle.UseSecondaryVersion(ref handleForArray);
+#endif
+
+        // Create a new NativeArray which aliases the buffer, using the current size. This doesn't allocate or copy
+        // any data, it just sets up a NativeArray<T> which points at the m_Buffer.
+        var array = NativeArrayUnsafeUtility.ConvertExistingDataToNativeArray<T>(m_Buffer, m_Length, Allocator.None);
+        
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        // Set the AtomicSafetyHandle on the newly created NativeArray to be the one that you copied from your handle
+        // and made to use the secondary version.
+        NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref array, handleForArray);
+#endif
+        
+        return array;
+    }
+
+    public void Dispose()
+    {
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        AtomicSafetyHandle.CheckDeallocateAndThrow(m_Safety);
+        AtomicSafetyHandle.Release(m_Safety);
+#endif
+
+        // Free the buffer
+        UnsafeUtility.FreeTracked(m_Buffer, m_AllocatorLabel);
+        m_Buffer = null;
+        m_Length = 0;
+    }
+}
+```
