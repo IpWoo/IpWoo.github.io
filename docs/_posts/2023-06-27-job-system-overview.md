@@ -5,7 +5,7 @@ date:   2023-06-27
 categories: jekyll update
 ---
 ![Job-System-Blog-Header](https://raw.githubusercontent.com/IpWoo/IpWoo.github.io/gh-pages/docs/Job-System-Blog-Header.jpg "Job-System-Blog-Header")
-
+原文连接：<https://docs.unity3d.com/Manual/JobSystem.html>
 # Job system概述
 Unity的job system可以让你创建多线程代码，这样你的应用程序可以使用所有可用的CPU核心来执行你的代码。这提供了更好的性能，因为你的应用程序更有效地使用它所运行的所有CPU核心的能力，而不是在一个CPU核心上运行所有代码。
 
