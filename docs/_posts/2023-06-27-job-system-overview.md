@@ -4,8 +4,10 @@ title:  "Unity Job System（文档翻译）"
 date:   2023-06-27
 categories: jekyll update
 ---
-![Job-System-Blog-Header](https://raw.githubusercontent.com/IpWoo/IpWoo.github.io/gh-pages/docs/Job-System-Blog-Header.jpg "Job-System-Blog-Header")
+![Job-System-Blog-Header](https://raw.githubusercontent.com/IpWoo/IpWoo.github.io/gh-pages/docs/image/Job-System-Blog-Header.jpg "Job-System-Blog-Header")
+
 原文连接：<https://docs.unity3d.com/Manual/JobSystem.html>
+
 # Job system概述
 Unity的job system可以让你创建多线程代码，这样你的应用程序可以使用所有可用的CPU核心来执行你的代码。这提供了更好的性能，因为你的应用程序更有效地使用它所运行的所有CPU核心的能力，而不是在一个CPU核心上运行所有代码。
 
@@ -48,7 +50,7 @@ job system使用memcpy来复制blittable类型，并在Unity的托管和本地�
 # 线程安全类型
 当你将job system与`Burst编译器`一起使用时，它的效果最好。因为Burst不支持托管对象，你需要使用非托管类型来访问jobs中的数据。你可以使用`blittable类型`，或者使用Unity内置的`NativeContainer`对象，它是一个线程安全的C#包装器，用于本地内存。`NativeContainer`对象也允许jobs访问与`主线程`共享的数据，而不是使用一个副本。
 
-NativeContainers的类型
+# NativeContainers的类型
 `Unity.Collections`命名空间包含以下内置的`NativeContainer`对象：
 
 `NativeArray`： 一个非托管数组，它向托管代码暴露了一个本地内存的缓冲区。
@@ -138,3 +140,11 @@ Unity的原生代码实现了泄漏跟踪。它使用UnsafeUtility.MallocTracked
 
 你也可以用SetCustomErrorMessage来覆盖特定的违反安全约束的错误信息。
 
+# 复制NativeContainer结构
+Native容器是值类型，这意味着当它们被分配到一个变量时，Unity会复制NativeContainer结构，其中包含指向存储Native容器数据的指针，包括其AtomicSafetyHandle。它并不复制NativeContainer的全部内容。
+
+这种情况意味着一个NativeContainer结构可能有多个副本，它们都引用了同一个内存区域，并且都包含了引用同一个中央记录的AtomicSafetyHandle对象。
+
+NativeContainer对象的副本如何工作
+NativeContainer对象的副本如何工作
+上图显示了一个NativeArray结构的三个不同的副本，它们都代表了同一个实际的容器。每个副本都指向相同的存储数据，以及与原始NativeArray相同的安全数据。然而，NativeArray的每个副本都有不同的标志，表明作业被允许对该副本做什么。指向安全数据的指针，结合这些标志，构成了AtomicSafetyHandle。
